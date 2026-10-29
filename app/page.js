@@ -194,7 +194,13 @@ export default function Home() {
           <button onClick={handleSend} style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '0 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
             Send
           </button>
-        </div>
+        </div><input
+  type="text"
+  value={inputMessage}
+  onChange={(e) => setInputMessage(e.target.value)}
+  disabled={!isTimerRunning}
+  placeholder={isTimerRunning ? "Type or click Speak..." : "Resume timer to continue practice..."}
+/>
 
       </div>
     </div>
