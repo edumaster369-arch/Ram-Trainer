@@ -15,8 +15,8 @@ export default function Home() {
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [timer, setTimer] = useState(279); // 4:39 remaining out of 60 mins
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [timer, setTimer] = useState(3600); // 60 mins
+  const [isTimerRunning, setIsTimerRunning] = useState(true);
   const chatEndRef = useRef(null);
 
   // Timer countdown effect
@@ -29,6 +29,11 @@ export default function Home() {
     }
     return () => clearInterval(interval);
   }, [isTimerRunning, timer]);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -49,14 +54,17 @@ export default function Home() {
       const res = await fetch('/api/ram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: newMessages })
+        body: JSON.stringify({ prompt: userMsg, currentDay: 1 })
       });
       const data = await res.json();
       if (data.reply) {
         setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+      } else if (data.error) {
+        setMessages([...newMessages, { role: 'assistant', content: `Error: ${data.error}` }]);
       }
     } catch (err) {
       console.error(err);
+      setMessages([...newMessages, { role: 'assistant', content: 'Network error connecting to RAM.' }]);
     } finally {
       setLoading(false);
     }
@@ -190,3 +198,4 @@ export default function Home() {
     </div>
   );
 }
+
