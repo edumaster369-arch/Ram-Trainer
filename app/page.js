@@ -19,7 +19,6 @@ export default function Home() {
   const [isTimerRunning, setIsTimerRunning] = useState(true);
   const chatEndRef = useRef(null);
 
-  // Timer countdown effect
   useEffect(() => {
     let interval = null;
     if (isTimerRunning && timer > 0) {
@@ -30,7 +29,6 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [isTimerRunning, timer]);
 
-  // Auto-scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
@@ -57,8 +55,17 @@ export default function Home() {
         body: JSON.stringify({ prompt: userMsg, currentDay: 1 })
       });
       const data = await res.json();
+      
       if (data.reply) {
-        setMessages([...newMessages, { role: 'assistant', content: data.reply }]);
+        const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
+        setMessages(updatedMessages);
+
+        // Speak response out loud
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(data.reply);
+          utterance.lang = 'en-IN';
+          window.speechSynthesis.speak(utterance);
+        }
       } else if (data.error) {
         setMessages([...newMessages, { role: 'assistant', content: `Error: ${data.error}` }]);
       }
@@ -198,4 +205,3 @@ export default function Home() {
     </div>
   );
 }
-
