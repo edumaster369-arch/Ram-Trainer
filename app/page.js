@@ -1,352 +1,113 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../../lib/supabase';
 
-// Initialize Supabase Client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-export default function Home() {
-  const [student, setStudent] = useState(null);
+export default function AdminDashboard() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [pinCode, setPinCode] = useState('');
+  const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [isTimerPaused, setIsTimerPaused] = useState(false);
-  
-  // Registration Form State
-  const [formData, setFormData] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    college_name: ''
-  });
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Check if student has already registered on this device
-  useEffect(() => {
-    const savedStudent = localStorage.getItem('ram_student');
-    if (savedStudent) {
-      setStudent(JSON.parse(savedStudent));
-    }
-  }, []);
+  // Change this passcode to whatever pin you prefer!
+  const SECRET_PIN = '7876';
 
-  // Handle New Student Registration
-  const handleRegister = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
-    setLoading(true);
-
-    // Generate unique Student ID (e.g., RAM-4821)
-    const generatedId = 'RAM-' + Math.floor(1000 + Math.random() * 9000);
-    
-    const newStudent = {
-      student_id: generatedId,
-      name: formData.name,
-      phone: formData.phone,
-      email: formData.email,
-      college_name: formData.college_name,
-      status: 'Trial'
-    };
-
-    try {
-      // 1. Insert into Supabase 'students' table
-      const { error } = await supabase.from('students').insert([newStudent]);
-
-      if (error) {
-        alert('Error saving registration: ' + error.message);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Save locally so returning students stay logged in
-      localStorage.setItem('ram_student', JSON.stringify(newStudent));
-      setStudent(newStudent);
-    } catch (err) {
-      alert('Registration failed. Please check your network connection.');
-    } finally {
-      setLoading(false);
+    if (pinCode === SECRET_PIN) {
+      setIsAuthenticated(true);
+      fetchStudents();
+    } else {
+      alert('Incorrect Passcode!');
     }
   };
 
-  // ---------------------------------------------------------------------------
-  // VIEW 1: REGISTRATION FORM (Shown to new students)
-  // ---------------------------------------------------------------------------
-  if (!student) {
+  const fetchStudents = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching students:', error);
+    } else {
+      setStudents(data || []);
+    }
+    setLoading(false);
+  };
+
+  const filteredStudents = students.filter(
+    (s) =>
+      s.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.phone?.includes(searchQuery) ||
+      s.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.college_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  if (!isAuthenticated) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-        padding: '20px',
-        fontFamily: 'sans-serif'
-      }}>
-        <div style={{
-          backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          padding: '32px',
-          maxWidth: '420px',
-          width: '100%',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: '0 0 8px 0' }}>
-              RAM — AI English Trainer
-            </h1>
-            <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
-              Register for your 7-Day Free Trial
-            </p>
-          </div>
-
-          <form onSubmit={handleRegister}>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
-                Full Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Rahul Sharma"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                required
-                placeholder="e.g. 9876543210"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
-                Email Address *
-              </label>
-              <input
-                type="email"
-                required
-                placeholder="e.g. student@gmail.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
-                College / Institute Name *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Zeal College"
-                value={formData.college_name}
-                onChange={(e) => setFormData({ ...formData, college_name: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  border: '1px solid #d1d5db',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                backgroundColor: loading ? '#9ca3af' : '#2563eb',
-                color: '#ffffff',
-                padding: '12px',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: '600',
-                fontSize: '15px',
-                cursor: loading ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? 'Registering...' : 'Start Free Trial'}
-            </button>
-          </form>
-        </div>
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif' }}>
+        <form onSubmit={handleLogin} style={{ background: '#fff', padding: '30px', borderRadius: '10px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', textAlign: 'center', width: '300px' }}>
+          <h2 style={{ marginBottom: '20px', color: '#1f2937' }}>Admin Access</h2>
+          <input
+            type="password"
+            placeholder="Enter Admin PIN"
+            value={pinCode}
+            onChange={(e) => setPinCode(e.target.value)}
+            style={{ width: '100%', padding: '10px', marginBottom: '15px', borderRadius: '6px', border: '1px solid #d1d5db', textAlign: 'center', fontSize: '16px', boxSizing: 'border-box' }}
+          />
+          <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+            Unlock Dashboard
+          </button>
+        </form>
       </div>
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // VIEW 2: DYNAMIC PRACTICE DASHBOARD (Shown after registration)
-  // ---------------------------------------------------------------------------
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#f3f4f6',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      fontFamily: 'sans-serif'
-    }}>
-      <div style={{
-        backgroundColor: '#ffffff',
-        borderRadius: '16px',
-        maxWidth: '600px',
-        width: '100%',
-        padding: '24px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.06)'
-      }}>
-        {/* Header Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-          <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 4px 0', color: '#111827' }}>
-              Welcome, {student.name}!
-            </h2>
-            <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
-              Student ID: {student.student_id}
-            </p>
-          </div>
-          <span style={{
-            backgroundColor: '#dcfce7',
-            color: '#166534',
-            fontSize: '12px',
-            fontWeight: '600',
-            padding: '4px 10px',
-            borderRadius: '12px'
-          }}>
-            TRIAL ACCESS
-          </span>
-        </div>
-
-        {/* Status Bar */}
-        <div style={{
-          display: 'flex',
-          justify: 'space-between',
-          alignItems: 'center',
-          backgroundColor: '#f9fafb',
-          padding: '12px 16px',
-          borderRadius: '8px',
-          marginBottom: '20px',
-          border: '1px solid #e5e7eb'
-        }}>
-          <div>
-            <span style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: '600' }}>CURRENT LESSON</span>
-            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#2563eb' }}>DAY 1 / 30</span>
-          </div>
-
-          <div>
-            <span style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: '600' }}>DAILY PRACTICE USAGE</span>
-            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#2563eb' }}>59:56 / 60:00</span>
-          </div>
-
-          <button
-            onClick={() => setIsTimerPaused(!isTimerPaused)}
-            style={{
-              backgroundColor: isTimerPaused ? '#16a34a' : '#dc2626',
-              color: '#ffffff',
-              border: 'none',
-              padding: '8px 14px',
-              borderRadius: '6px',
-              fontWeight: '600',
-              fontSize: '13px',
-              cursor: 'pointer'
-            }}
-          >
-            {isTimerPaused ? 'Resume Timer' : 'Pause Timer'}
-          </button>
-        </div>
-
-        {/* Practice Chat Box */}
-        <div style={{
-          height: '250px',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '20px',
-          backgroundColor: '#fafafa',
-          overflowY: 'auto'
-        }}>
-          <div style={{
-            backgroundColor: '#f3f4f6',
-            padding: '12px 16px',
-            borderRadius: '12px',
-            maxWidth: '85%',
-            fontSize: '14px',
-            color: '#374151',
-            lineHeight: '1.4'
-          }}>
-            Welcome back. Let us start Day 1 practice. Please introduce yourself. Tell me your name, your background, and your city.
-          </div>
-        </div>
-
-        {/* Controls Bar */}
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input
-            type="text"
-            placeholder="Type or click Speak..."
-            style={{
-              flex: 1,
-              padding: '10px 14px',
-              borderRadius: '6px',
-              border: '1px solid #d1d5db',
-              fontSize: '14px'
-            }}
-          />
-          <button style={{
-            backgroundColor: '#16a34a',
-            color: '#ffffff',
-            border: 'none',
-            padding: '10px 18px',
-            borderRadius: '6px',
-            fontWeight: '600',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}>
-            Speak
-          </button>
-          <button style={{
-            backgroundColor: '#2563eb',
-            color: '#ffffff',
-            border: 'none',
-            padding: '10px 18px',
-            borderRadius: '6px',
-            fontWeight: '600',
-            fontSize: '14px',
-            cursor: 'pointer'
-          }}>
-            Send
-          </button>
-        </div>
+    <div style={{ padding: '30px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2>Registered Students ({students.length})</h2>
+        <button onClick={fetchStudents} style={{ padding: '8px 16px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+          Refresh List
+        </button>
       </div>
+
+      <input
+        type="text"
+        placeholder="Search by name, phone, email, or college..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        style={{ width: '100%', padding: '10px', marginBottom: '20px', borderRadius: '6px', border: '1px solid #d1d5db', boxSizing: 'border-box' }}
+      />
+
+      {loading ? (
+        <p>Loading records...</p>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          <thead>
+            <tr style={{ background: '#f9fafb', textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>
+              <th style={{ padding: '12px' }}>Student ID</th>
+              <th style={{ padding: '12px' }}>Name</th>
+              <th style={{ padding: '12px' }}>Phone</th>
+              <th style={{ padding: '12px' }}>Email</th>
+              <th style={{ padding: '12px' }}>College / Work</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredStudents.map((s, idx) => (
+              <tr key={s.id || idx} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                <td style={{ padding: '12px', fontWeight: 'bold', color: '#2563eb' }}>{s.student_id}</td>
+                <td style={{ padding: '12px' }}>{s.name}</td>
+                <td style={{ padding: '12px' }}>{s.phone}</td>
+                <td style={{ padding: '12px' }}>{s.email}</td>
+                <td style={{ padding: '12px' }}>{s.college_name}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
