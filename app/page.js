@@ -17,7 +17,7 @@ export default function StudentRegistration() {
 
     const { error } = await supabase
       .from('students')
-      .insert([{ name, phone, email, college }]);
+      .insert([{ name, phone, email, college_name: college }]);
 
     setLoading(false);
 
@@ -35,7 +35,10 @@ export default function StudentRegistration() {
         <div style={{ background: '#e6ffed', padding: '20px', borderRadius: '5px', textAlign: 'center' }}>
           <h3>Thank you, {name}!</h3>
           <p>Your registration has been successfully submitted.</p>
-          <button onClick={() => { setSubmitted(false); setName(''); setPhone(''); setEmail(''); setCollege(''); }} style={{ padding: '10px 20px', cursor: 'pointer', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px' }}>
+          <button 
+            onClick={() => { setSubmitted(false); setName(''); setPhone(''); setEmail(''); setCollege(''); }} 
+            style={{ padding: '10px 20px', cursor: 'pointer', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px' }}
+          >
             Register Another Student
           </button>
         </div>
@@ -43,21 +46,49 @@ export default function StudentRegistration() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Full Name</label>
-            <input type="text" required value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+            <input 
+              type="text" 
+              required 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} 
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Phone Number</label>
-            <input type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+            <input 
+              type="tel" 
+              required 
+              value={phone} 
+              onChange={(e) => setPhone(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} 
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email Address</label>
-            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+            <input 
+              type="email" 
+              required 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} 
+            />
           </div>
           <div>
             <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>College / Course</label>
-            <input type="text" required value={college} onChange={(e) => setCollege(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} />
+            <input 
+              type="text" 
+              required 
+              value={college} 
+              onChange={(e) => setCollege(e.target.value)} 
+              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc' }} 
+            />
           </div>
-          <button type="submit" disabled={loading} style={{ padding: '12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '16px', cursor: 'pointer' }}>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={{ padding: '12px', background: '#0070f3', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '16px', cursor: 'pointer' }}
+          >
             {loading ? 'Submitting...' : 'Register Now'}
           </button>
         </form>
