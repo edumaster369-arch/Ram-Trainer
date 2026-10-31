@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { supabase } from './supabase';
-
 export default function AdminDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinCode, setPinCode] = useState('');
