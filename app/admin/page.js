@@ -9,7 +9,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Admin secret PIN passcode
+  // Secret PIN passcode
   const SECRET_PIN = '7876';
 
   const handleLogin = (e) => {
