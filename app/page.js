@@ -15,9 +15,18 @@ export default function StudentRegistration() {
     e.preventDefault();
     setLoading(true);
 
+    // Generate a unique student ID like RAM-4821
+    const randomId = `RAM-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const { error } = await supabase
       .from('students')
-      .insert([{ name, phone, email, college_name: college }]);
+      .insert([{ 
+        student_id: randomId,
+        name, 
+        phone, 
+        email, 
+        college_name: college 
+      }]);
 
     setLoading(false);
 
