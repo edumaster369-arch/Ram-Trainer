@@ -1,206 +1,351 @@
 'use client';
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+// Initialize Supabase Client
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function Home() {
-  const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Welcome back. Let us start Day 1 practice. Please introduce yourself. Tell me your name, your background, and your city.' }
-  ]);
-  const [inputMessage, setInputMessage] = useState('');
+  const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [timer, setTimer] = useState(3600); // 60 mins
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
-  const chatEndRef = useRef(null);
+  const [isTimerPaused, setIsTimerPaused] = useState(false);
+  
+  // Registration Form State
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    college_name: ''
+  });
 
+  // Check if student has already registered on this device
   useEffect(() => {
-    let interval = null;
-    if (isTimerRunning && timer > 0) {
-      interval = setInterval(() => {
-        setTimer((prev) => prev - 1);
-      }, 1000);
+    const savedStudent = localStorage.getItem('ram_student');
+    if (savedStudent) {
+      setStudent(JSON.parse(savedStudent));
     }
-    return () => clearInterval(interval);
-  }, [isTimerRunning, timer]);
+  }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
-
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-  };
-
-  const handleSend = async () => {
-    if (!inputMessage.trim() || !isTimerRunning) return;
-
-    const userMsg = inputMessage;
-    setInputMessage('');
-    const newMessages = [...messages, { role: 'user', content: userMsg }];
-    setMessages(newMessages);
+  // Handle New Student Registration
+  const handleRegister = async (e) => {
+    e.preventDefault();
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/ram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: userMsg, currentDay: 1 })
-      });
-      const data = await res.json();
-      
-      if (data.reply) {
-        const updatedMessages = [...newMessages, { role: 'assistant', content: data.reply }];
-        setMessages(updatedMessages);
+    // Generate unique Student ID (e.g., RAM-4821)
+    const generatedId = 'RAM-' + Math.floor(1000 + Math.random() * 9000);
+    
+    const newStudent = {
+      student_id: generatedId,
+      name: formData.name,
+      phone: formData.phone,
+      email: formData.email,
+      college_name: formData.college_name,
+      status: 'Trial'
+    };
 
-        // Speak response out loud
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(data.reply);
-          utterance.lang = 'en-IN';
-          window.speechSynthesis.speak(utterance);
-        }
-      } else if (data.error) {
-        setMessages([...newMessages, { role: 'assistant', content: `Error: ${data.error}` }]);
+    try {
+      // 1. Insert into Supabase 'students' table
+      const { error } = await supabase.from('students').insert([newStudent]);
+
+      if (error) {
+        alert('Error saving registration: ' + error.message);
+        setLoading(false);
+        return;
       }
+
+      // 2. Save locally so returning students stay logged in
+      localStorage.setItem('ram_student', JSON.stringify(newStudent));
+      setStudent(newStudent);
     } catch (err) {
-      console.error(err);
-      setMessages([...newMessages, { role: 'assistant', content: 'Network error connecting to RAM.' }]);
+      alert('Registration failed. Please check your network connection.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleListen = () => {
-    if (!isTimerRunning) return;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser.');
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-IN';
-    recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      setInputMessage(transcript);
-      setIsListening(false);
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-    } else {
-      recognition.start();
-    }
-  };
-
-  return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6', display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px', fontFamily: 'sans-serif' }}>
-      <div style={{ width: '100%', maxWidth: '650px', backgroundColor: '#ffffff', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '24px', display: 'flex', flexDirection: 'column', height: '80vh' }}>
-        
-        {/* Header Section */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '16px' }}>
-          <div>
-            <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: '0 0 4px 0', color: '#1f2937' }}>Welcome, Ashish Kelkar!</h2>
-            <p style={{ fontSize: '13px', color: '#6b7280', margin: '0' }}>Student ID: RAM-3732</p>
+  // ---------------------------------------------------------------------------
+  // VIEW 1: REGISTRATION FORM (Shown to new students)
+  // ---------------------------------------------------------------------------
+  if (!student) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f3f4f6',
+        padding: '20px',
+        fontFamily: 'sans-serif'
+      }}>
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '12px',
+          padding: '32px',
+          maxWidth: '420px',
+          width: '100%',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+        }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: '0 0 8px 0' }}>
+              RAM — AI English Trainer
+            </h1>
+            <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>
+              Register for your 7-Day Free Trial
+            </p>
           </div>
-          <span style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>TRIAL ACCESS</span>
+
+          <form onSubmit={handleRegister}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
+                Full Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Rahul Sharma"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
+                Phone Number *
+              </label>
+              <input
+                type="tel"
+                required
+                placeholder="e.g. 9876543210"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
+                Email Address *
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="e.g. student@gmail.com"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '6px' }}>
+                College / Institute Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Zeal College"
+                value={formData.college_name}
+                onChange={(e) => setFormData({ ...formData, college_name: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid #d1d5db',
+                  fontSize: '14px',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                width: '100%',
+                backgroundColor: loading ? '#9ca3af' : '#2563eb',
+                color: '#ffffff',
+                padding: '12px',
+                borderRadius: '6px',
+                border: 'none',
+                fontWeight: '600',
+                fontSize: '15px',
+                cursor: loading ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? 'Registering...' : 'Start Free Trial'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // VIEW 2: DYNAMIC PRACTICE DASHBOARD (Shown after registration)
+  // ---------------------------------------------------------------------------
+  return (
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#f3f4f6',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      fontFamily: 'sans-serif'
+    }}>
+      <div style={{
+        backgroundColor: '#ffffff',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        width: '100%',
+        padding: '24px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.06)'
+      }}>
+        {/* Header Section */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 'bold', margin: '0 0 4px 0', color: '#111827' }}>
+              Welcome, {student.name}!
+            </h2>
+            <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
+              Student ID: {student.student_id}
+            </p>
+          </div>
+          <span style={{
+            backgroundColor: '#dcfce7',
+            color: '#166534',
+            fontSize: '12px',
+            fontWeight: '600',
+            padding: '4px 10px',
+            borderRadius: '12px'
+          }}>
+            TRIAL ACCESS
+          </span>
         </div>
 
-        {/* Status & Timer Bar */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f9fafb', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px' }}>
+        {/* Status Bar */}
+        <div style={{
+          display: 'flex',
+          justify: 'space-between',
+          alignItems: 'center',
+          backgroundColor: '#f9fafb',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid #e5e7eb'
+        }}>
           <div>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 2px 0', fontWeight: 'bold' }}>CURRENT LESSON</p>
-            <p style={{ fontSize: '14px', color: '#2563eb', fontWeight: 'bold', margin: '0' }}>DAY 1 / 30</p>
+            <span style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: '600' }}>CURRENT LESSON</span>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#2563eb' }}>DAY 1 / 30</span>
           </div>
+
           <div>
-            <p style={{ fontSize: '11px', color: '#6b7280', margin: '0 0 2px 0', fontWeight: 'bold' }}>DAILY PRACTICE USAGE</p>
-            <p style={{ fontSize: '14px', color: '#2563eb', fontWeight: 'bold', margin: '0' }}>{formatTime(timer)} / 60:00</p>
+            <span style={{ display: 'block', fontSize: '11px', color: '#6b7280', fontWeight: '600' }}>DAILY PRACTICE USAGE</span>
+            <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#2563eb' }}>59:56 / 60:00</span>
           </div>
-          <button 
-            onClick={() => setIsTimerRunning(!isTimerRunning)} 
-            style={{ backgroundColor: isTimerRunning ? '#dc2626' : '#16a34a', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}
+
+          <button
+            onClick={() => setIsTimerPaused(!isTimerPaused)}
+            style={{
+              backgroundColor: isTimerPaused ? '#16a34a' : '#dc2626',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              fontWeight: '600',
+              fontSize: '13px',
+              cursor: 'pointer'
+            }}
           >
-            {isTimerRunning ? 'Pause Timer' : 'Resume Timer'}
+            {isTimerPaused ? 'Resume Timer' : 'Pause Timer'}
           </button>
         </div>
 
-        {/* Chat Messages Area */}
-        <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px', backgroundColor: '#ffffff', display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
-          {messages.map((msg, index) => (
-            <div key={index} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '80%', backgroundColor: msg.role === 'user' ? '#2563eb' : '#f3f4f6', color: msg.role === 'user' ? '#ffffff' : '#1f2937', padding: '10px 14px', borderRadius: '12px', fontSize: '14px' }}>
-              {msg.content}
-            </div>
-          ))}
-          {loading && <div style={{ alignSelf: 'flex-start', color: '#6b7280', fontSize: '13px', fontStyle: 'italic' }}>RAM is typing...</div>}
-          <div ref={chatEndRef} />
+        {/* Practice Chat Box */}
+        <div style={{
+          height: '250px',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          padding: '16px',
+          marginBottom: '20px',
+          backgroundColor: '#fafafa',
+          overflowY: 'auto'
+        }}>
+          <div style={{
+            backgroundColor: '#f3f4f6',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            maxWidth: '85%',
+            fontSize: '14px',
+            color: '#374151',
+            lineHeight: '1.4'
+          }}>
+            Welcome back. Let us start Day 1 practice. Please introduce yourself. Tell me your name, your background, and your city.
+          </div>
         </div>
 
-        {/* Input & Control Box */}
+        {/* Controls Bar */}
         <div style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            disabled={!isTimerRunning}
-            placeholder={isTimerRunning ? "Type or click Speak..." : "Resume timer to continue practice..."}
-            style={{ 
-              flex: 1, 
-              padding: '10px 14px', 
-              border: '1px solid #d1d5db', 
-              borderRadius: '8px', 
-              fontSize: '14px', 
-              outline: 'none', 
-              backgroundColor: isTimerRunning ? '#ffffff' : '#f3f4f6', 
-              color: isTimerRunning ? '#1f2937' : '#9ca3af',
-              cursor: isTimerRunning ? 'text' : 'not-allowed' 
+            placeholder="Type or click Speak..."
+            style={{
+              flex: 1,
+              padding: '10px 14px',
+              borderRadius: '6px',
+              border: '1px solid #d1d5db',
+              fontSize: '14px'
             }}
           />
-          <button
-            onClick={handleListen}
-            disabled={!isTimerRunning}
-            style={{ 
-              backgroundColor: !isTimerRunning ? '#9ca3af' : (isListening ? '#dc2626' : '#16a34a'), 
-              color: '#ffffff', 
-              border: 'none', 
-              padding: '10px 16px', 
-              borderRadius: '8px', 
-              fontWeight: 'bold', 
-              cursor: isTimerRunning ? 'pointer' : 'not-allowed', 
-              opacity: isTimerRunning ? 1 : 0.6 
-            }}
-          >
-            {isListening ? 'Stop' : 'Speak'}
+          <button style={{
+            backgroundColor: '#16a34a',
+            color: '#ffffff',
+            border: 'none',
+            padding: '10px 18px',
+            borderRadius: '6px',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}>
+            Speak
           </button>
-          <button
-            onClick={handleSend}
-            disabled={!isTimerRunning}
-            style={{ 
-              backgroundColor: !isTimerRunning ? '#9ca3af' : '#2563eb', 
-              color: '#ffffff', 
-              border: 'none', 
-              padding: '10px 18px', 
-              borderRadius: '8px', 
-              fontWeight: 'bold', 
-              cursor: isTimerRunning ? 'pointer' : 'not-allowed', 
-              opacity: isTimerRunning ? 1 : 0.6 
-            }}
-          >
+          <button style={{
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
+            border: 'none',
+            padding: '10px 18px',
+            borderRadius: '6px',
+            fontWeight: '600',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}>
             Send
           </button>
         </div>
-
       </div>
     </div>
   );
